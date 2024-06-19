@@ -1,0 +1,167 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template theme_boost/footer
+
+    Page footer.
+
+    Example context (json):
+    {
+        "output": {
+            "page_doc_link": "Help and documentation",
+            "supportemail": "<a href=\"#\">Contact site support</a>",
+            "has_popover_links": true,
+            "services_support": "Services and support",
+            "login_info": "You are logged in as cute kitten",
+            "moodle_release": "90210"
+        }
+    }
+}}
+
+<footer id="page-footer" class="bg-white">
+    <div class="container-fluid">
+        <div class="footer-section pb-3">
+            <div class="tool_usertours-resettourcontainer">
+            </div>
+
+            {{{ output.standard_footer_html }}}
+            {{{ output.standard_end_of_body_html }}}
+        </div>
+    </div>
+
+    <div class="footer-content-debugging footer-dark bg-dark text-light">
+        <div class="container-fluid footer-dark-inner">
+            {{{ output.debug_footer_html }}}
+        </div>
+    </div>
+</footer>
+{{#js}}
+require(['theme_boost/footer-popover'], function(FooterPopover) {
+    FooterPopover.init();
+});
+require(['jquery', 'core/notification', 'core/modal_factory', 'core/modal_events', 'core/templates'], function($, Notification, ModalFactory, ModalEvents, Templates) {
+    $('#id_phone1').focus(function(){
+        $('#id_sendotp').show();
+    });
+    $(document).on('click', '#id_sendotp', function() {
+        var mobile = $('#id_phone1').val();
+        var errorvalue = '';
+        if(!mobile) {
+            errorvalue = '- Phone Number is required';
+        } else if(isNaN(mobile)) {
+            errorvalue = '- Numbers only';
+        } else if(mobile.toString().length < 10) {
+            errorvalue = '- Please enter valid phone number';
+        }
+
+        if(errorvalue) {
+            $('#id_error_phone1').html(errorvalue);
+            $('#id_error_phone1').show();
+        } else {
+            $('#id_error_phone1').hide();
+            $('#id_error_phone1').html('');
+        
+            ModalFactory.create({
+                type: ModalFactory.types.SAVE_CANCEL,
+                title: 'Verify OTP',
+                body: '<label class="d-inline">Please enter otp sent to your mobile no</label><input type="number" class="form-control" type="text" id="otp" value="" name="otp"/><p id="resendotp">Resend otp</p><p class="invalidbox"></p><p id="otpbox"></p>',
+            }).then(function(modal) {
+                modal.setSaveButtonText('Verify OTP');
+                
+                var data = {
+                    'mobile': mobile,
+                    'action':'sendotp'
+                };
+
+                // Ajax call for sending otp
+                var returnotp =  ajaxCall(data).then(function(returndata){
+                    if(returndata) {
+                        modal.show();
+                        $('#otpbox').html(returndata);
+                    } else {
+                        alert('Something went wrong. Please try later.');
+                    }
+                }); 
+
+                // Script for resending OTP
+                $(document).on('click', 'p#resendotp', function() {
+                    var mobile = $('#id_phone1').val();
+                    var resendotpvalue  = {
+                    'mobile': mobile,
+                    'action':'resendotp'
+                    };
+                    ajaxCall(resendotpvalue).then(function(datavalue){
+                        console.log('data',datavalue);
+                        if(datavalue) {
+                        modal.show();
+                        $('#otpbox').html(datavalue);
+                        } else {
+                            alert('Something went wrong. Please try later.');
+                        }
+                    });
+                });
+
+                //Script for validating otp
+                modal.getRoot().on(ModalEvents.save, function(e) {
+                    var otp = $('#otp').val();
+                    var value  = {
+                    'otp': otp,
+                    'mobile': mobile,
+                    'action':'verifyotp'
+                    };
+                    ajaxCall(value).then(function(datavalue){
+                        console.log('data',datavalue);
+                        if(datavalue == 1) {
+                            modal.hide();
+                            $('#fitem_id_sendotp').html('<p class="btn btn-success"><i class="fa fa-check"></i> Verified</p>');
+                            $('#id_sendotp').hide();
+                        } else {
+                            modal.show();
+                            $('#otp').val("");
+                            $('.invalidbox').html('Invalid OTP');
+                        }
+                    });
+                });
+
+                modal.getRoot().on(ModalEvents.cancel, function(e) {
+                    $(this).remove();
+                });
+            });
+        }
+    });
+
+
+
+    function ajaxCall(data) {
+        return new Promise(function(resolve, reject) {
+            $.ajax({
+                url: M.cfg.wwwroot + '/local/otpverification/ajax_bridge.php',
+                method: 'post',
+                data: data,
+                success: function(result) {
+                    resolve(result);
+                }
+            });
+        });
+    }
+    
+});
+{{/js}}
+<style>
+#id_sendotp{display:none;}
+p#resendotp{cursor:pointer;}
+</style>
