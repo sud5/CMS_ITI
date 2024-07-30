@@ -106,7 +106,8 @@ $templatecontext = [
     'overflow' => $overflow,
     'headercontent' => $headercontent,
     'customlogo' => get_logo_url(),
-    'addblockbutton' => $addblockbutton
+    'addblockbutton' => $addblockbutton,
+    'logourl' => get_loginlogo_url(),
 ];
 
 echo $OUTPUT->render_from_template('theme_campwks/drawers', $templatecontext);
